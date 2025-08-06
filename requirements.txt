@@ -1,0 +1,29 @@
+# FastAPI and server dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Google Generative AI (Gemini)
+google-generativeai==0.3.2
+
+# Document processing
+PyPDF2==3.0.1
+python-docx==1.1.0
+
+# Async and utilities
+aiofiles==23.2.1
+python-dotenv==1.0.0
+
+# Data validation and serialization
+pydantic==2.5.0
+
+# Logging and monitoring
+structlog==23.2.0
+
+# CORS and middleware
+starlette==0.27.0
+
+# Optional: Database support (uncomment if needed)
+# sqlalchemy==2.0.23
+# databases[postgresql]==0.8.0
+# alembic==1.13.1
