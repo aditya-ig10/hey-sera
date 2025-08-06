@@ -10,7 +10,7 @@ import logging
 from typing import Optional, Dict, Any
 import uuid
 from datetime import datetime
-import PyPDF2
+import pdfplumber
 import docx
 from io import BytesIO
 
@@ -33,10 +33,6 @@ app.add_middleware(
 # Configure Gemini API
 GEMINI_API_KEY = "AIzaSyDyCUnQumkU9-_mGegPo-bGgp6AeMO2gic"  # Consider moving this to an environment variable
 genai.configure(api_key=GEMINI_API_KEY)
-# if not GEMINI_API_KEY:
-#     raise ValueError("GEMINI_API_KEY environment variable is required")
-
-# genai.configure(api_key="GEMINI_API_KEY")
 
 # Initialize Gemini model
 model = genai.GenerativeModel('gemini-1.5-flash')
@@ -84,25 +80,81 @@ If you don't have enough context or information, ask clarifying questions.
 """
 
 def extract_text_from_pdf(file_content: bytes) -> str:
-    """Extract text from PDF file"""
+    """Extract text from PDF file using pdfplumber for better accuracy"""
     try:
-        pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
         text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
+        with pdfplumber.open(BytesIO(file_content)) as pdf:
+            for page_num, page in enumerate(pdf.pages, 1):
+                try:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += f"\n--- Page {page_num} ---\n"
+                        text += page_text + "\n"
+                    
+                    # Also extract text from tables if present
+                    tables = page.extract_tables()
+                    if tables:
+                        for table_num, table in enumerate(tables, 1):
+                            text += f"\n--- Table {table_num} on Page {page_num} ---\n"
+                            for row in table:
+                                if row and any(cell for cell in row if cell):  # Skip empty rows
+                                    text += " | ".join(str(cell) if cell else "" for cell in row) + "\n"
+                            text += "\n"
+                            
+                except Exception as page_error:
+                    logger.warning(f"Error extracting from page {page_num}: {page_error}")
+                    continue
+                    
+        # Clean up the text
+        text = text.strip()
+        if not text:
+            logger.warning("No text extracted from PDF")
+            return ""
+            
+        logger.info(f"Successfully extracted {len(text)} characters from PDF")
         return text
+        
     except Exception as e:
-        logger.error(f"Error extracting PDF text: {e}")
-        return ""
+        logger.error(f"Error extracting PDF text with pdfplumber: {e}")
+        # Fallback to basic text extraction if pdfplumber fails
+        try:
+            import PyPDF2
+            pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            return text
+        except Exception as fallback_error:
+            logger.error(f"Fallback PDF extraction also failed: {fallback_error}")
+            return ""
 
 def extract_text_from_docx(file_content: bytes) -> str:
     """Extract text from DOCX file"""
     try:
         doc = docx.Document(BytesIO(file_content))
         text = ""
+        
+        # Extract text from paragraphs
         for paragraph in doc.paragraphs:
-            text += paragraph.text + "\n"
+            if paragraph.text.strip():
+                text += paragraph.text + "\n"
+        
+        # Extract text from tables
+        for table in doc.tables:
+            text += "\n--- Table ---\n"
+            for row in table.rows:
+                row_text = []
+                for cell in row.cells:
+                    cell_text = cell.text.strip()
+                    if cell_text:
+                        row_text.append(cell_text)
+                if row_text:
+                    text += " | ".join(row_text) + "\n"
+            text += "\n"
+        
+        logger.info(f"Successfully extracted {len(text)} characters from DOCX")
         return text
+        
     except Exception as e:
         logger.error(f"Error extracting DOCX text: {e}")
         return ""
@@ -193,10 +245,18 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
         allowed_types = [".pdf", ".docx", ".txt"]
         file_extension = os.path.splitext(file.filename)[1].lower()
         if file_extension not in allowed_types:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file type: {file_extension}. Supported types: {', '.join(allowed_types)}"
+            )
         
-        # Read file content
+        # Validate file size (10MB limit)
         file_content = await file.read()
+        max_size = 10 * 1024 * 1024  # 10MB
+        if len(file_content) > max_size:
+            raise HTTPException(status_code=400, detail="File too large. Maximum size is 10MB.")
+        
+        logger.info(f"Processing file: {file.filename} ({len(file_content)} bytes)")
         
         # Extract text based on file type
         if file_extension == ".pdf":
@@ -204,10 +264,19 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
         elif file_extension == ".docx":
             text_content = extract_text_from_docx(file_content)
         else:  # .txt
-            text_content = file_content.decode('utf-8')
+            try:
+                text_content = file_content.decode('utf-8')
+            except UnicodeDecodeError:
+                try:
+                    text_content = file_content.decode('latin-1')
+                except UnicodeDecodeError:
+                    text_content = file_content.decode('utf-8', errors='ignore')
         
-        if not text_content.strip():
-            raise HTTPException(status_code=400, detail="Could not extract text from document")
+        if not text_content or not text_content.strip():
+            raise HTTPException(
+                status_code=400, 
+                detail="Could not extract text from document. The file might be empty or corrupted."
+            )
         
         # Store document
         doc_id = str(uuid.uuid4())
@@ -216,7 +285,9 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
             "filename": file.filename,
             "content": text_content,
             "uploaded_at": datetime.now().isoformat(),
-            "file_type": file_extension
+            "file_type": file_extension,
+            "file_size": len(file_content),
+            "text_length": len(text_content)
         }
         
         # Associate with chat session
@@ -227,11 +298,15 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
         analysis_prompt = f"I've uploaded a document titled '{file.filename}'. Please provide a brief summary and key insights from this policy document."
         analysis = await generate_response(analysis_prompt, chat_id, text_content)
         
+        logger.info(f"Successfully processed document: {file.filename}")
+        
         return {
             "success": True,
             "documentId": doc_id,
             "chatId": chat_id,
             "filename": file.filename,
+            "fileSize": len(file_content),
+            "textLength": len(text_content),
             "analysis": analysis
         }
     
@@ -239,7 +314,7 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
         raise
     except Exception as e:
         logger.error(f"Upload error: {e}")
-        raise HTTPException(status_code=500, detail="Error processing document")
+        raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
 
 @app.get("/api/chat/{chat_id}/history")
 async def get_chat_history(chat_id: str):
@@ -248,6 +323,22 @@ async def get_chat_history(chat_id: str):
         raise HTTPException(status_code=404, detail="Chat session not found")
     
     return chat_sessions[chat_id]
+
+@app.get("/api/chat/{chat_id}/documents")
+async def get_chat_documents(chat_id: str):
+    """Get documents associated with a chat session"""
+    if chat_id not in chat_sessions:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    documents = []
+    for doc_id in chat_sessions[chat_id]["documents"]:
+        if doc_id in uploaded_documents:
+            doc = uploaded_documents[doc_id].copy()
+            # Don't return the full content, just metadata
+            doc.pop("content", None)
+            documents.append(doc)
+    
+    return {"documents": documents}
 
 @app.delete("/api/chat/{chat_id}")
 async def delete_chat(chat_id: str):

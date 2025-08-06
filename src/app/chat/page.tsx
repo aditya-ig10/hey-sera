@@ -15,7 +15,11 @@ import {
   Cog6ToothIcon,
   ChatBubbleLeftRightIcon,
   BoltIcon,
-  StopIcon
+  StopIcon,
+  PaperClipIcon,
+  XMarkIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 import { 
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
@@ -28,6 +32,10 @@ interface Message {
   text: string;
   timestamp: Date;
   isTyping?: boolean;
+  fileUpload?: {
+    filename: string;
+    analysis: string;
+  };
 }
 
 interface ChatSession {
@@ -46,8 +54,12 @@ export default function ChatPage() {
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [isTyping, setIsTyping] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string>('');
+  const [uploadSuccess, setUploadSuccess] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle authentication state
   useEffect(() => {
@@ -71,6 +83,21 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Clear upload notifications after 5 seconds
+  useEffect(() => {
+    if (uploadError) {
+      const timer = setTimeout(() => setUploadError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadError]);
+
+  useEffect(() => {
+    if (uploadSuccess) {
+      const timer = setTimeout(() => setUploadSuccess(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadSuccess]);
 
   // Handle sign out
   const handleSignOut = async () => {
@@ -96,6 +123,81 @@ export default function ChatPage() {
     setCurrentChatId(newChatId);
     setMessages([]);
   };
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  setUploadError('');
+  setUploadSuccess('');
+
+  const allowedTypes = ['.pdf', '.docx', '.txt'];
+  const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+  if (!allowedTypes.includes(fileExtension)) {
+    setUploadError('Unsupported file type. Please upload PDF, DOCX, or TXT files.');
+    event.target.value = '';
+    return;
+  }
+
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) {
+    setUploadError('File too large. Maximum size is 10MB.');
+    event.target.value = '';
+    return;
+  }
+
+  setIsUploading(true);
+
+  let chatId = currentChatId || Date.now().toString();
+  if (!currentChatId) {
+    const newSession: ChatSession = {
+      id: chatId,
+      title: 'New Chat',
+      lastMessage: '',
+      timestamp: new Date()
+    };
+    setChatSessions(prev => [newSession, ...prev]);
+    setCurrentChatId(chatId);
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('chatId', chatId);
+
+    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!response.ok) throw new Error(`Upload failed: ${await response.text()}`);
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Upload failed');
+
+    const uploadMessage: Message = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: `Uploaded: ${file.name}`,
+      timestamp: new Date(),
+      fileUpload: { filename: file.name, analysis: data.analysis }
+    };
+    const analysisMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      sender: 'bot',
+      text: data.analysis,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, uploadMessage, analysisMessage]);
+    setUploadSuccess(`Successfully uploaded ${file.name}`);
+    setChatSessions(prev => prev.map(session =>
+      session.id === chatId ? { ...session, lastMessage: `Uploaded: ${file.name}`, timestamp: new Date() } : session
+    ));
+  } catch (error) {
+    setUploadError(error instanceof Error ? error.message : 'Failed to upload file');
+  } finally {
+    setIsUploading(false);
+    event.target.value = '';
+  }
+};
 
   // Send message to Python backend
   const sendMessageToAPI = async (userMessage: string) => {
@@ -224,6 +326,36 @@ export default function ChatPage() {
         }}
       ></div>
 
+      {/* Upload notifications */}
+      {(uploadError || uploadSuccess) && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          {uploadError && (
+            <div className="flex items-center gap-3 p-4 bg-red-900/50 border border-red-500/50 rounded-lg backdrop-blur-sm mb-2">
+              <ExclamationCircleIcon className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <p className="text-red-100 text-sm">{uploadError}</p>
+              <button
+                onClick={() => setUploadError('')}
+                className="text-red-400 hover:text-red-300"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          {uploadSuccess && (
+            <div className="flex items-center gap-3 p-4 bg-green-900/50 border border-green-500/50 rounded-lg backdrop-blur-sm">
+              <CheckCircleIcon className="w-5 h-5 text-green-400 flex-shrink-0" />
+              <p className="text-green-100 text-sm">{uploadSuccess}</p>
+              <button
+                onClick={() => setUploadSuccess('')}
+                className="text-green-400 hover:text-green-300"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Sidebar */}
       <div className={`${isSidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 bg-black/50 backdrop-blur-sm border-r border-gray-800/50 flex flex-col relative z-10`}>
         <div className={`${isSidebarOpen ? 'p-6' : 'p-0'} transition-all duration-300 overflow-hidden`}>
@@ -275,9 +407,13 @@ export default function ChatPage() {
           {/* Quick Actions */}
           <div className="space-y-2 mb-6">
             <h3 className="text-sm font-medium text-gray-400 mb-3 px-2">Quick Actions</h3>
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all">
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <DocumentTextIcon className="w-4 h-4" />
-              <span className="text-sm">Upload Document</span>
+              <span className="text-sm">{isUploading ? 'Uploading...' : 'Upload Document'}</span>
             </button>
             <button className="w-full flex items-center gap-3 px-3 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all">
               <BoltIcon className="w-4 h-4" />
@@ -303,6 +439,16 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,.txt"
+        onChange={handleFileUpload}
+        className="hidden"
+        disabled={isUploading}
+      />
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative z-10">
@@ -349,13 +495,17 @@ export default function ChatPage() {
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <DocumentTextIcon className="w-6 h-6 text-blue-400 mb-2 mx-auto" />
+                  <h3 className="font-medium mb-1">{isUploading ? 'Uploading...' : 'Analyze Document'}</h3>
+                  <p className="text-sm text-gray-400">Upload PDF, DOCX, or TXT files</p>
+                </button>
                 <div className="p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer">
-                  <DocumentTextIcon className="w-6 h-6 text-blue-400 mb-2" />
-                  <h3 className="font-medium mb-1">Analyze Document</h3>
-                  <p className="text-sm text-gray-400">Upload and get insights from policy docs</p>
-                </div>
-                <div className="p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all cursor-pointer">
-                  <BoltIcon className="w-6 h-6 text-purple-400 mb-2" />
+                  <BoltIcon className="w-6 h-6 text-purple-400 mb-2 mx-auto" />
                   <h3 className="font-medium mb-1">Quick Question</h3>
                   <p className="text-sm text-gray-400">Ask me anything about policies</p>
                 </div>
@@ -388,7 +538,18 @@ export default function ChatPage() {
                       {msg.isTyping ? (
                         <TypingIndicator />
                       ) : (
-                        <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                        <div>
+                          {msg.fileUpload && (
+                            <div className="mb-3 p-3 bg-white/10 rounded-lg border border-white/20">
+                              <div className="flex items-center gap-2 mb-2">
+                                <DocumentTextIcon className="w-4 h-4 text-blue-400" />
+                                <span className="text-sm font-medium">{msg.fileUpload.filename}</span>
+                              </div>
+                              <p className="text-xs text-gray-300">File uploaded and analyzed successfully</p>
+                            </div>
+                          )}
+                          <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                        </div>
                       )}
                     </div>
                     <div className={`text-xs text-gray-500 mt-2 ${msg.sender === 'user' ? 'text-right' : ''}`}>
@@ -407,6 +568,15 @@ export default function ChatPage() {
         <div className="p-6 bg-black/30 backdrop-blur-sm border-t border-gray-800/50">
           <div className="max-w-4xl mx-auto">
             <div className="relative flex items-end gap-3 p-3 bg-white/5 rounded-2xl border border-white/10 focus-within:border-blue-500/50 transition-all">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isTyping}
+                className="p-2 text-gray-400 hover:text-blue-400 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Upload document"
+              >
+                <PaperClipIcon className="w-5 h-5" />
+              </button>
+              
               <textarea
                 ref={textareaRef}
                 value={message}
@@ -415,7 +585,7 @@ export default function ChatPage() {
                 placeholder="Ask me anything about policies or documents..."
                 className="flex-1 bg-transparent text-white placeholder-gray-400 resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"
                 rows={1}
-                disabled={isTyping}
+                disabled={isTyping || isUploading}
               />
               
               {isTyping ? (
@@ -429,7 +599,7 @@ export default function ChatPage() {
               ) : (
                 <button
                   type="button"
-                  disabled={!message.trim()}
+                  disabled={!message.trim() || isUploading}
                   onClick={handleSendMessage}
                   className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full hover:from-blue-500 hover:to-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -440,13 +610,18 @@ export default function ChatPage() {
             
             <div className="flex items-center justify-between mt-3 px-3">
               <p className="text-xs text-gray-500">
-                Press Enter to send, Shift+Enter for new line
+                {isUploading 
+                  ? 'Uploading and analyzing document...' 
+                  : 'Press Enter to send, Shift+Enter for new line'
+                }
               </p>
               <div className="flex items-center gap-4 text-xs text-gray-500">
                 <span>{message.length} characters</span>
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  AI Ready
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${
+                    isUploading ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}></div>
+                  {isUploading ? 'Processing' : 'AI Ready'}
                 </div>
               </div>
             </div>
