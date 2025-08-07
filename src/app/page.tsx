@@ -152,8 +152,8 @@ export default function SeraLandingPage() {
           delay={50}
           duration={1.2}
           ease="power4.out"
-          from={{ opacity: 0, y: 100, scale: 0.8 }}
-          to={{ opacity: 1, y: 0, scale: 1 }}
+          from={{ opacity: 0, y: 100 }}
+          to={{ opacity: 1, y: 0 }}
         />
 
         {/* Subtitle */}

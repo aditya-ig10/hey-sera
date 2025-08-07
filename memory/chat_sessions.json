@@ -1,0 +1,254 @@
+{
+  "598fa9e9-e61b-46b8-baa4-f9be0bba6ef7": {
+    "id": "598fa9e9-e61b-46b8-baa4-f9be0bba6ef7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hii",
+        "timestamp": "2025-08-07T18:14:59.527623"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi there!  How can I help you today?  Do you have a policy document you'd like me to analyze?\n",
+        "timestamp": "2025-08-07T18:14:59.527650"
+      },
+      {
+        "role": "user",
+        "content": "cool",
+        "timestamp": "2025-08-07T18:16:36.327331"
+      },
+      {
+        "role": "assistant",
+        "content": "Cool!  I'm ready when you are. Please provide the policy document or a link to it.  To help me analyze it efficiently, could you also tell me anything you already know about the policy, such as its purpose or the context in which it operates? This will help me focus my analysis.\n",
+        "timestamp": "2025-08-07T18:16:36.327353"
+      },
+      {
+        "role": "user",
+        "content": "which organisation the policy belongs too",
+        "timestamp": "2025-08-07T18:16:50.872473"
+      },
+      {
+        "role": "assistant",
+        "content": "That's an important question!  To accurately analyze a policy document, I need to know which organization it belongs to.  Knowing the organization will help me understand the context, its existing procedures, and potential legal and regulatory frameworks impacting the policy.  Please provide the organization's name.\n",
+        "timestamp": "2025-08-07T18:16:50.872501"
+      },
+      {
+        "role": "user",
+        "content": "perfect",
+        "timestamp": "2025-08-07T18:20:27.579532"
+      },
+      {
+        "role": "assistant",
+        "content": "Perfect!  Now that we've established the need to know the organization, please provide the name of the organization and the policy document (or a link to it).  Let's get started!\n",
+        "timestamp": "2025-08-07T18:20:27.579548"
+      }
+    ],
+    "documents": [],
+    "created_at": "2025-08-07T18:14:58.738176",
+    "last_updated": "2025-08-07T18:20:27.579552"
+  },
+  "d257bb2a-7a1b-4d03-bae9-d53a9dbc156c": {
+    "id": "d257bb2a-7a1b-4d03-bae9-d53a9dbc156c",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hola amigo",
+        "timestamp": "2025-08-07T18:22:00.973962"
+      },
+      {
+        "role": "assistant",
+        "content": "Hola amigo!  How can I help you today with your policy document analysis?  Do you have specific questions or would you like a summary of the Bajaj Allianz Global Health Care policy wording?\n",
+        "timestamp": "2025-08-07T18:22:00.973976"
+      },
+      {
+        "role": "user",
+        "content": "nah! Do you remember my name ?",
+        "timestamp": "2025-08-07T18:22:17.358062"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:22:17.358084"
+      },
+      {
+        "role": "user",
+        "content": "okay so what you do?",
+        "timestamp": "2025-08-07T18:22:36.835363"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:22:36.835374"
+      },
+      {
+        "role": "user",
+        "content": "okay",
+        "timestamp": "2025-08-07T18:23:02.177030"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:23:02.177049"
+      }
+    ],
+    "documents": [
+      "04acede1-fb56-4ddc-8cf6-764bfbc6e614"
+    ],
+    "created_at": "2025-08-07T18:15:48.312245",
+    "last_updated": "2025-08-07T18:23:02.177055"
+  },
+  "d4482059-ea9d-4db9-8f8d-3cb046d4f4c3": {
+    "id": "d4482059-ea9d-4db9-8f8d-3cb046d4f4c3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hii my name is aditya",
+        "timestamp": "2025-08-07T18:23:15.115462"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:23:15.115481"
+      },
+      {
+        "role": "user",
+        "content": "hii my name is aditya",
+        "timestamp": "2025-08-07T18:23:47.783955"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi Aditya, it's nice to meet you.  How can I help you today?  Do you have a policy document you'd like me to analyze?\n",
+        "timestamp": "2025-08-07T18:23:47.783980"
+      },
+      {
+        "role": "user",
+        "content": "whats my name!",
+        "timestamp": "2025-08-07T18:23:54.671168"
+      },
+      {
+        "role": "assistant",
+        "content": "Your name is Aditya.\n",
+        "timestamp": "2025-08-07T18:23:54.671213"
+      }
+    ],
+    "documents": [],
+    "created_at": "2025-08-07T18:23:14.374805",
+    "last_updated": "2025-08-07T18:23:54.671220"
+  },
+  "2567d63c-7624-4a7d-a42c-633a6b2f81a8": {
+    "id": "2567d63c-7624-4a7d-a42c-633a6b2f81a8",
+    "messages": [
+      {
+        "role": "user",
+        "content": "my age is 21 and is it good for me ?",
+        "timestamp": "2025-08-07T18:30:09.614228"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:30:09.614246"
+      },
+      {
+        "role": "user",
+        "content": "aah shit",
+        "timestamp": "2025-08-07T18:30:27.281046"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:30:27.281067"
+      },
+      {
+        "role": "user",
+        "content": "now available?",
+        "timestamp": "2025-08-07T18:32:03.476208"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:32:03.476229"
+      },
+      {
+        "role": "user",
+        "content": "hii",
+        "timestamp": "2025-08-07T18:34:13.420290"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:34:13.420308"
+      },
+      {
+        "role": "user",
+        "content": "u up?",
+        "timestamp": "2025-08-07T18:34:46.150595"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:34:46.150611"
+      }
+    ],
+    "documents": [
+      "951ac9ab-a031-42e0-8916-ce5f1a8700fc"
+    ],
+    "created_at": "2025-08-07T18:27:23.889169",
+    "last_updated": "2025-08-07T18:34:46.150616"
+  },
+  "5429b01a-0f69-4a39-adaf-94896fda83e2": {
+    "id": "5429b01a-0f69-4a39-adaf-94896fda83e2",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hello",
+        "timestamp": "2025-08-07T18:34:20.203161"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:34:20.203181"
+      }
+    ],
+    "documents": [],
+    "created_at": "2025-08-07T18:34:19.452926",
+    "last_updated": "2025-08-07T18:34:20.203187"
+  },
+  "dd594cdf-6957-4cfe-b69a-a9c8c7128e0b": {
+    "id": "dd594cdf-6957-4cfe-b69a-a9c8c7128e0b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Sera my name is aditya and i am 21M can you analyse a policy for me that is it worth buying or not",
+        "timestamp": "2025-08-07T18:37:31.972958"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello Aditya!  I'd be happy to help you analyze a policy to determine if it's worthwhile for you.  However, I need some more information to do so effectively.  Please tell me:\n\n1. **What type of policy is it?** (e.g., insurance, investment, government policy, company policy)\n2. **Can you provide me with the policy document itself or a link to it?**  I need the actual text to analyze it.\n3. **What are your goals and priorities?**  What are you hoping to achieve by purchasing this policy? (e.g., financial security, risk mitigation, investment growth)\n4. **What is your current financial situation?**  This will help me assess the financial implications of the policy.\n\nOnce I have this information, I can provide you with a thorough analysis including key objectives, implementation details, potential risks, financial implications, and my assessment of whether it's a worthwhile purchase for you.\n",
+        "timestamp": "2025-08-07T18:37:31.972979"
+      }
+    ],
+    "documents": [],
+    "created_at": "2025-08-07T18:37:27.389799",
+    "last_updated": "2025-08-07T18:37:31.972986"
+  },
+  "4f01fd92-facb-4e9d-a829-60c2ab5ed76e": {
+    "id": "4f01fd92-facb-4e9d-a829-60c2ab5ed76e",
+    "messages": [
+      {
+        "role": "user",
+        "content": "tr yagain",
+        "timestamp": "2025-08-07T18:38:10.047008"
+      },
+      {
+        "role": "assistant",
+        "content": "I apologize, but I encountered an error processing your request. Please try again.",
+        "timestamp": "2025-08-07T18:38:10.047022"
+      }
+    ],
+    "documents": [
+      "e7ce764d-1756-4ee2-8b00-17e35d603243"
+    ],
+    "created_at": "2025-08-07T18:37:46.534650",
+    "last_updated": "2025-08-07T18:38:10.047025"
+  }
+}

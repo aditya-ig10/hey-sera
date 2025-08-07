@@ -13,6 +13,7 @@ from datetime import datetime
 import pdfplumber
 import docx
 from io import BytesIO
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,15 +32,98 @@ app.add_middleware(
 )
 
 # Configure Gemini API
-GEMINI_API_KEY = "AIzaSyDyCUnQumkU9-_mGegPo-bGgp6AeMO2gic"  # Consider moving this to an environment variable
+GEMINI_API_KEY = "AIzaSyDSinmAUdLRA2yZb--hxN9i_umbQoSwpOY"  # Consider moving this to an environment variable
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Initialize Gemini model
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# In-memory storage for chat sessions and documents
-chat_sessions: Dict[str, Dict[str, Any]] = {}
-uploaded_documents: Dict[str, Dict[str, Any]] = {}
+# Local storage configuration
+MEMORY_DIR = Path("memory")
+CHAT_SESSIONS_FILE = MEMORY_DIR / "chat_sessions.json"
+UPLOADED_DOCUMENTS_FILE = MEMORY_DIR / "uploaded_documents.json"
+
+# Create memory directory if it doesn't exist
+MEMORY_DIR.mkdir(exist_ok=True)
+
+# Initialize storage files if they don't exist
+def init_storage_files():
+    """Initialize JSON storage files if they don't exist"""
+    if not CHAT_SESSIONS_FILE.exists():
+        with open(CHAT_SESSIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({}, f, indent=2)
+    
+    if not UPLOADED_DOCUMENTS_FILE.exists():
+        with open(UPLOADED_DOCUMENTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({}, f, indent=2)
+
+def load_chat_sessions() -> Dict[str, Dict[str, Any]]:
+    """Load chat sessions from JSON file"""
+    try:
+        if CHAT_SESSIONS_FILE.exists():
+            with open(CHAT_SESSIONS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading chat sessions: {e}")
+        return {}
+
+def save_chat_sessions(sessions: Dict[str, Dict[str, Any]]):
+    """Save chat sessions to JSON file"""
+    try:
+        with open(CHAT_SESSIONS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(sessions, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Error saving chat sessions: {e}")
+
+def load_uploaded_documents() -> Dict[str, Dict[str, Any]]:
+    """Load uploaded documents from JSON file"""
+    try:
+        if UPLOADED_DOCUMENTS_FILE.exists():
+            with open(UPLOADED_DOCUMENTS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        logger.error(f"Error loading uploaded documents: {e}")
+        return {}
+
+def save_uploaded_documents(documents: Dict[str, Dict[str, Any]]):
+    """Save uploaded documents to JSON file"""
+    try:
+        with open(UPLOADED_DOCUMENTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(documents, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Error saving uploaded documents: {e}")
+
+def backup_data():
+    """Create a backup of current data with timestamp"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_dir = MEMORY_DIR / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        
+        # Backup chat sessions
+        if CHAT_SESSIONS_FILE.exists():
+            backup_chat_file = backup_dir / f"chat_sessions_{timestamp}.json"
+            with open(CHAT_SESSIONS_FILE, 'r', encoding='utf-8') as src:
+                with open(backup_chat_file, 'w', encoding='utf-8') as dst:
+                    dst.write(src.read())
+        
+        # Backup documents
+        if UPLOADED_DOCUMENTS_FILE.exists():
+            backup_docs_file = backup_dir / f"uploaded_documents_{timestamp}.json"
+            with open(UPLOADED_DOCUMENTS_FILE, 'r', encoding='utf-8') as src:
+                with open(backup_docs_file, 'w', encoding='utf-8') as dst:
+                    dst.write(src.read())
+                    
+        logger.info(f"Data backup created with timestamp: {timestamp}")
+        return timestamp
+    except Exception as e:
+        logger.error(f"Error creating backup: {e}")
+        return None
+
+# Initialize storage on startup
+init_storage_files()
 
 # Pydantic models for request/response
 class ChatMessage(BaseModel):
@@ -161,19 +245,26 @@ def extract_text_from_docx(file_content: bytes) -> str:
 
 def get_or_create_chat_session(chat_id: Optional[str] = None) -> str:
     """Get existing chat session or create a new one"""
+    chat_sessions = load_chat_sessions()
+    
     if not chat_id or chat_id not in chat_sessions:
         chat_id = str(uuid.uuid4())
         chat_sessions[chat_id] = {
             "id": chat_id,
             "messages": [],
             "documents": [],
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
+            "last_updated": datetime.now().isoformat()
         }
+        save_chat_sessions(chat_sessions)
+    
     return chat_id
 
 async def generate_response(prompt: str, chat_id: str, context: str = "") -> str:
     """Generate response using Gemini API"""
     try:
+        chat_sessions = load_chat_sessions()
+        
         # Prepare the full prompt with context
         full_prompt = f"{SYSTEM_PROMPT}\n\n"
         
@@ -208,6 +299,10 @@ async def chat_endpoint(message: ChatMessage):
         # Get or create chat session
         chat_id = get_or_create_chat_session(message.chatId)
         
+        # Load current data
+        chat_sessions = load_chat_sessions()
+        uploaded_documents = load_uploaded_documents()
+        
         # Get document context if available
         context = ""
         if chat_id in chat_sessions and chat_sessions[chat_id]["documents"]:
@@ -226,6 +321,10 @@ async def chat_endpoint(message: ChatMessage):
             {"role": "user", "content": message.message, "timestamp": datetime.now().isoformat()},
             {"role": "assistant", "content": response_text, "timestamp": datetime.now().isoformat()}
         ])
+        chat_sessions[chat_id]["last_updated"] = datetime.now().isoformat()
+        
+        # Save updated sessions
+        save_chat_sessions(chat_sessions)
         
         return ChatResponse(
             response=response_text,
@@ -278,6 +377,10 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
                 detail="Could not extract text from document. The file might be empty or corrupted."
             )
         
+        # Load current data
+        uploaded_documents = load_uploaded_documents()
+        chat_sessions = load_chat_sessions()
+        
         # Store document
         doc_id = str(uuid.uuid4())
         uploaded_documents[doc_id] = {
@@ -290,9 +393,15 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
             "text_length": len(text_content)
         }
         
+        # Save documents
+        save_uploaded_documents(uploaded_documents)
+        
         # Associate with chat session
         chat_id = get_or_create_chat_session(chatId)
+        chat_sessions = load_chat_sessions()  # Reload to get latest data
         chat_sessions[chat_id]["documents"].append(doc_id)
+        chat_sessions[chat_id]["last_updated"] = datetime.now().isoformat()
+        save_chat_sessions(chat_sessions)
         
         # Generate initial analysis
         analysis_prompt = f"I've uploaded a document titled '{file.filename}'. Please provide a brief summary and key insights from this policy document."
@@ -319,6 +428,7 @@ async def upload_document(file: UploadFile = File(...), chatId: Optional[str] = 
 @app.get("/api/chat/{chat_id}/history")
 async def get_chat_history(chat_id: str):
     """Get chat history for a session"""
+    chat_sessions = load_chat_sessions()
     if chat_id not in chat_sessions:
         raise HTTPException(status_code=404, detail="Chat session not found")
     
@@ -327,6 +437,9 @@ async def get_chat_history(chat_id: str):
 @app.get("/api/chat/{chat_id}/documents")
 async def get_chat_documents(chat_id: str):
     """Get documents associated with a chat session"""
+    chat_sessions = load_chat_sessions()
+    uploaded_documents = load_uploaded_documents()
+    
     if chat_id not in chat_sessions:
         raise HTTPException(status_code=404, detail="Chat session not found")
     
@@ -340,28 +453,108 @@ async def get_chat_documents(chat_id: str):
     
     return {"documents": documents}
 
+@app.get("/api/chats")
+async def get_all_chats():
+    """Get all chat sessions (metadata only)"""
+    chat_sessions = load_chat_sessions()
+    
+    # Return only metadata, not full message content
+    chats = []
+    for chat_id, session in chat_sessions.items():
+        chat_metadata = {
+            "id": session["id"],
+            "created_at": session["created_at"],
+            "last_updated": session.get("last_updated", session["created_at"]),
+            "message_count": len(session["messages"]),
+            "document_count": len(session["documents"])
+        }
+        
+        # Add last message preview if available
+        if session["messages"]:
+            last_user_message = None
+            for msg in reversed(session["messages"]):
+                if msg["role"] == "user":
+                    last_user_message = msg["content"][:100] + "..." if len(msg["content"]) > 100 else msg["content"]
+                    break
+            chat_metadata["last_message_preview"] = last_user_message
+        
+        chats.append(chat_metadata)
+    
+    # Sort by last_updated, most recent first
+    chats.sort(key=lambda x: x["last_updated"], reverse=True)
+    
+    return {"chats": chats}
+
 @app.delete("/api/chat/{chat_id}")
 async def delete_chat(chat_id: str):
     """Delete a chat session"""
+    chat_sessions = load_chat_sessions()
+    uploaded_documents = load_uploaded_documents()
+    
     if chat_id in chat_sessions:
         # Also remove associated documents
         for doc_id in chat_sessions[chat_id]["documents"]:
             uploaded_documents.pop(doc_id, None)
         
         chat_sessions.pop(chat_id, None)
+        
+        # Save updated data
+        save_chat_sessions(chat_sessions)
+        save_uploaded_documents(uploaded_documents)
+        
         return {"success": True, "message": "Chat session deleted"}
     
     raise HTTPException(status_code=404, detail="Chat session not found")
 
+@app.post("/api/backup")
+async def create_backup():
+    """Create a backup of all data"""
+    timestamp = backup_data()
+    if timestamp:
+        return {"success": True, "message": f"Backup created successfully", "timestamp": timestamp}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to create backup")
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
+    chat_sessions = load_chat_sessions()
+    uploaded_documents = load_uploaded_documents()
+    
     return {
         "status": "healthy",
         "service": "Hey Sera API",
         "timestamp": datetime.now().isoformat(),
         "active_sessions": len(chat_sessions),
-        "uploaded_documents": len(uploaded_documents)
+        "uploaded_documents": len(uploaded_documents),
+        "storage": {
+            "chat_sessions_file": str(CHAT_SESSIONS_FILE),
+            "documents_file": str(UPLOADED_DOCUMENTS_FILE),
+            "memory_dir": str(MEMORY_DIR)
+        }
+    }
+
+@app.get("/api/stats")
+async def get_stats():
+    """Get system statistics"""
+    chat_sessions = load_chat_sessions()
+    uploaded_documents = load_uploaded_documents()
+    
+    total_messages = sum(len(session["messages"]) for session in chat_sessions.values())
+    total_documents = len(uploaded_documents)
+    total_text_length = sum(doc.get("text_length", 0) for doc in uploaded_documents.values())
+    
+    return {
+        "total_chats": len(chat_sessions),
+        "total_messages": total_messages,
+        "total_documents": total_documents,
+        "total_text_length": total_text_length,
+        "storage_files": {
+            "chat_sessions_exists": CHAT_SESSIONS_FILE.exists(),
+            "documents_exists": UPLOADED_DOCUMENTS_FILE.exists(),
+            "chat_sessions_size": CHAT_SESSIONS_FILE.stat().st_size if CHAT_SESSIONS_FILE.exists() else 0,
+            "documents_size": UPLOADED_DOCUMENTS_FILE.stat().st_size if UPLOADED_DOCUMENTS_FILE.exists() else 0
+        }
     }
 
 if __name__ == "__main__":
